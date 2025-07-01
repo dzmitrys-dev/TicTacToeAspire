@@ -70,13 +70,13 @@
         try
         {
             // Create the session (this part already works)
-            var createResponse = await Http.PostAsync("/sessions", null);
+            var createResponse = await Http.PostAsync("api/sessions", null);
             createResponse.EnsureSuccessStatusCode();
             session = await createResponse.Content.ReadFromJsonAsync<Session>();
 
             if (session != null)
             {
-                var simulateResponse = await Http.PostAsync($"/sessions/{session.SessionId}/simulate", null);
+                var simulateResponse = await Http.PostAsync($"api/sessions/{session.SessionId}/simulate", null);
 
                 simulateResponse.EnsureSuccessStatusCode();
 
@@ -108,7 +108,7 @@
 
         try
         {
-            var updatedSession = await Http.GetFromJsonAsync<Session>($"/sessions/{session.SessionId}");
+            var updatedSession = await Http.GetFromJsonAsync<Session>($"api/sessions/{session.SessionId}");
             if (updatedSession != null)
             {
                 session = updatedSession;

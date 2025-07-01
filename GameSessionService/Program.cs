@@ -13,7 +13,7 @@ builder.Services.AddSingleton<IAutomatedPlayer, RandomPlayer>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
 builder.Services.AddHttpClient<IGameEngineClient, GameEngineClient>(client =>
 {
-    client.BaseAddress = new("http://gameengine");
+    client.BaseAddress = new("http://apigateway");
 });
 
 var app = builder.Build();

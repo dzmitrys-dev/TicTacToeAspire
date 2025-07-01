@@ -13,7 +13,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped(sp =>
 {
     var client = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
-    client.BaseAddress = new("http://gamesession");
+    client.BaseAddress = new("http://apigateway");
     return client;
 });
 
