@@ -1,14 +1,16 @@
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Define the backend services
 var gameEngine = builder.AddProject<Projects.GameEngineService>("gameengine");
 var gameSession = builder.AddProject<Projects.GameSessionService>("gamesession");
 
-var apiGateway = builder.AddProject<Projects.ApiGateway>("apigateway")
-    .WithReference(gameEngine)
-    .WithReference(gameSession);
+// The GameSessionService now needs a direct reference to the GameEngineService
+gameSession.WithReference(gameEngine);
 
+// The WebApp now needs a direct reference to the GameSessionService
 builder.AddProject<Projects.WebApp>("webapp")
-       .WithReference(apiGateway)
-       .WithEnvironment("ASPIRE_ALLOW_UNSECURED_TRANSPORT", "true");
+       .WithReference(gameSession);
 
 builder.Build().Run();

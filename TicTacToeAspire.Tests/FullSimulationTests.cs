@@ -25,24 +25,27 @@ public class IntegrationTests
     }
 
     [Test, Order(1)]
-    public async Task FullGame_ViaApiGateway_ShouldCompleteSuccessfully()
+    public async Task FullGame_DirectCommunication_ShouldCompleteSuccessfully()
     {
-        // Arrange
-        var gatewayClient = _app.CreateHttpClient("apigateway");
+        // Arrange: Get a client that communicates directly with the GameSessionService
+        var sessionClient = _app.CreateHttpClient("gamesession");
 
         // Act
-        var createResponse = await gatewayClient.PostAsync("/api/sessions", null);
+        // Create a new session directly from the service
+        var createResponse = await sessionClient.PostAsync("/sessions", null);
         createResponse.EnsureSuccessStatusCode();
         var session = await createResponse.Content.ReadFromJsonAsync<Session>();
         Assert.That(session, Is.Not.Null);
 
-        var simulateResponse = await gatewayClient.PostAsync($"/api/sessions/{session.SessionId}/simulate", null);
+        // Start the simulation
+        var simulateResponse = await sessionClient.PostAsync($"/sessions/{session.SessionId}/simulate", null);
         simulateResponse.EnsureSuccessStatusCode();
 
+        // Poll until the game is over
         while (session?.CurrentGameState?.Status == "InProgress")
         {
             await Task.Delay(1500);
-            session = await gatewayClient.GetFromJsonAsync<Session>($"/api/sessions/{session.SessionId}");
+            session = await sessionClient.GetFromJsonAsync<Session>($"/sessions/{session.SessionId}");
         }
 
         // Assert
@@ -55,21 +58,22 @@ public class IntegrationTests
     [Test, Order(2)]
     public async Task MakeMove_ConcurrentRequests_ShouldBeHandledCorrectly()
     {
-        // Arrange
-        var gatewayClient = _app.CreateHttpClient("apigateway");
+        // Arrange: Get a client that communicates directly with the GameEngineService
+        var engineClient = _app.CreateHttpClient("gameengine");
         var gameId = $"concurrent-test-{Guid.NewGuid()}";
 
-        await gatewayClient.PostAsync($"/api/games/{gameId}", null);
+        // Create a game directly in the engine
+        await engineClient.PostAsync($"/games/{gameId}", null);
 
-        // Act
-        var move1 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(0, "🤓"));
-        var move2 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(1, "😅"));
-        var move3 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(2, "🤓"));
+        // Act: Fire concurrent move requests directly to the game engine
+        var move1 = engineClient.PostAsJsonAsync($"/games/{gameId}/move", new MoveRequest(0, "🤓"));
+        var move2 = engineClient.PostAsJsonAsync($"/games/{gameId}/move", new MoveRequest(1, "😅"));
+        var move3 = engineClient.PostAsJsonAsync($"/games/{gameId}/move", new MoveRequest(2, "🤓"));
 
         await Task.WhenAll(move1, move2, move3);
 
         // Assert
-        var finalStateResponse = await gatewayClient.GetAsync($"/api/games/{gameId}");
+        var finalStateResponse = await engineClient.GetAsync($"/games/{gameId}");
         finalStateResponse.EnsureSuccessStatusCode();
         var finalState = await finalStateResponse.Content.ReadFromJsonAsync<GameState>();
 

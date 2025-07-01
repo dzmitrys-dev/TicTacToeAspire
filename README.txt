@@ -51,7 +51,7 @@ The test suite will launch the entire distributed application in-memory, run the
 
 ### Implemented Improvements
 
-1.  **API Gateway (YARP)**: An API Gateway has been integrated to serve as a unified entry point. This decouples the front-end from the backend services, allowing them to evolve independently. It also centralizes routing logic and provides a single point for implementing cross-cutting concerns like authentication, rate limiting, and caching in the future.
+1.  **.Net Apire**: A unified entry point. This decouples the front-end from the backend services, allowing them to evolve independently. It also centralizes routing logic and provides a single point for implementing cross-cutting concerns like authentication, rate limiting, and caching in the future.
 2.  **Concurrency Management**: The `GameEngineService` is now thread-safe. By implementing a per-game locking mechanism, we prevent race conditions that could occur if multiple move requests for the same game were processed simultaneously. This ensures data integrity and system stability under concurrent load.
 
 ### Potential Future Enhancements

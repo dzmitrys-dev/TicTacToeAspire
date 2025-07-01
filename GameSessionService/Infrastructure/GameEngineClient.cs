@@ -9,7 +9,7 @@ public class GameEngineClient : IGameEngineClient
 
     public async Task<GameState?> CreateGameAsync(string gameId)
     {
-        var response = await _httpClient.PostAsync($"api/games/{gameId}", null);
+        var response = await _httpClient.PostAsync($"games/{gameId}", null);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<GameState>();
     }
@@ -17,7 +17,7 @@ public class GameEngineClient : IGameEngineClient
     public async Task<GameState?> MakeMoveAsync(string gameId, int position, string player)
     {
         var moveRequest = new { position, player };
-        var response = await _httpClient.PostAsJsonAsync($"api/games/{gameId}/move", moveRequest);
+        var response = await _httpClient.PostAsJsonAsync($"games/{gameId}/move", moveRequest);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<GameState>();
     }

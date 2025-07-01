@@ -7,50 +7,71 @@
 
 <PageTitle>Tic-Tac-Toe Aspire by Dzmitry Sukhau</PageTitle>
 
-<div class="container text-center mt-4">
-    <header class="mb-4">
-        <h1 class="display-4">Distributed Tic-Tac-Toe Aspire by Dzmitry Sukhau</h1>
+<div class="container mt-4">
+    <header class="text-center mb-4">
+        <h1 class="display-4">Distributed Tic-Tac-Toe with .Net Aspire by Dzmitry Sukhau</h1>
         <p class="lead">Game played automatically by microservices</p>
     </header>
 
-    <main>
-        @if (session?.CurrentGameState != null)
-        {
-            <div class="d-inline-grid gap-2 bg-light p-3 rounded shadow-sm" style="grid-template-columns: repeat(3, 1fr);">
-                @foreach (var cell in session.CurrentGameState.Board)
-                {
-                    <div class="d-flex justify-content-center align-items-center bg-white rounded border" style="width: 80px; height: 80px; font-size: 2.5rem;">
-                        @cell
-                    </div>
-                }
-            </div>
-            <p class="h4 mt-4">
-                Status:
-                <span class="fw-bold @GetStatusColor()">
-                    @session.CurrentGameState.Status
-                </span>
-            </p>
-        }
-
-        <button @onclick="StartSimulation" disabled="@isSimulating" class="btn btn-primary btn-lg mt-4">
-            @if (isSimulating)
+    <div class="row justify-content-center">
+        <main class="col-md-7">
+            @if (session?.CurrentGameState != null)
             {
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                <span class="ms-2">Simulating...</span>
+                <div class="d-inline-grid gap-2 bg-light p-3 rounded shadow-sm" style="grid-template-columns: repeat(3, 1fr);">
+                    @foreach (var cell in session.CurrentGameState.Board)
+                    {
+                        <div class="d-flex justify-content-center align-items-center bg-white rounded border" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                            @cell
+                        </div>
+                    }
+                </div>
+                <p class="h4 mt-4">
+                    Status:
+                    <span class="fw-bold @GetStatusColor()">
+                        @session.CurrentGameState.Status
+                    </span>
+                </p>
+            }
+
+            <button @onclick="StartSimulation" disabled="@isSimulating" class="btn btn-primary btn-lg mt-4">
+                @if (isSimulating)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Simulating...</span>
+                }
+                else
+                {
+                    <span>Start New Simulation</span>
+                }
+            </button>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-4" role="alert">
+                    @errorMessage
+                </div>
+            }
+        </main>
+
+        <aside class="col-md-3">
+            <h4 class="text-muted">Move History</h4>
+            @if (session?.MoveHistory != null && session.MoveHistory.Any())
+            {
+                <ul class="list-group text-start">
+                    @foreach (var move in session.MoveHistory)
+                    {
+                        <li class="list-group-item">
+                            Player <span class="fw-bold">@move.Player</span> moved to position @move.Position
+                        </li>
+                    }
+                </ul>
             }
             else
             {
-                <span>Start New Simulation</span>
+                <p class="text-muted fst-italic">No moves yet.</p>
             }
-        </button>
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger mt-4" role="alert">
-                @errorMessage
-            </div>
-        }
-    </main>
+        </aside>
+    </div>
 </div>
 
 
@@ -69,17 +90,14 @@
 
         try
         {
-            // Create the session (this part already works)
-            var createResponse = await Http.PostAsync("api/sessions", null);
+            var createResponse = await Http.PostAsync("/sessions", null);
             createResponse.EnsureSuccessStatusCode();
             session = await createResponse.Content.ReadFromJsonAsync<Session>();
 
             if (session != null)
             {
-                var simulateResponse = await Http.PostAsync($"api/sessions/{session.SessionId}/simulate", null);
-
+                var simulateResponse = await Http.PostAsync($"/sessions/{session.SessionId}/simulate", null);
                 simulateResponse.EnsureSuccessStatusCode();
-
                 SetupPollingTimer();
             }
         }
@@ -108,7 +126,7 @@
 
         try
         {
-            var updatedSession = await Http.GetFromJsonAsync<Session>($"api/sessions/{session.SessionId}");
+            var updatedSession = await Http.GetFromJsonAsync<Session>($"/sessions/{session.SessionId}");
             if (updatedSession != null)
             {
                 session = updatedSession;
@@ -138,7 +156,23 @@
 
     public void Dispose() => pollingTimer?.Dispose();
 
-    // Models to match backend
-    public class Session { [JsonPropertyName("sessionId")] public string SessionId { get; set; } = ""; [JsonPropertyName("currentGameState")] public GameState? CurrentGameState { get; set; } }
-    public class GameState { [JsonPropertyName("board")] public string[] Board { get; set; } = new string[9]; [JsonPropertyName("status")] public string Status { get; set; } = ""; }
+    // --- Data Models updated to match the backend API response ---
+    public class Session
+    {
+        [JsonPropertyName("sessionId")] public string SessionId { get; set; } = "";
+        [JsonPropertyName("currentGameState")] public GameState? CurrentGameState { get; set; }
+        [JsonPropertyName("moveHistory")] public List<Move> MoveHistory { get; set; } = new();
+    }
+
+    public class GameState
+    {
+        [JsonPropertyName("board")] public string[] Board { get; set; } = new string[9];
+        [JsonPropertyName("status")] public string Status { get; set; } = "";
+    }
+
+    public class Move
+    {
+        [JsonPropertyName("player")] public string Player { get; set; } = "";
+        [JsonPropertyName("position")] public int Position { get; set; }
+    }
 }

@@ -12,7 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ApiGateway\ApiGateway.csproj" />
     <ProjectReference Include="..\GameSessionService\GameSessionService.csproj" />
     <ProjectReference Include="..\TicTacToeAspire.ApiService\GameEngineService.csproj" />
     <ProjectReference Include="..\TicTacToeAspire.Web\WebApp.csproj" />
