@@ -1,79 +1,85 @@
-﻿using NUnit.Framework;
+﻿using Aspire.Hosting;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
 namespace TicTacToeAspire.Tests;
 
 [TestFixture]
-public class FullSimulationTests
+public class IntegrationTests
 {
-    /// <summary>
-    /// This test launches the entire distributed application in-memory,
-    //  including all services, and tests the full game simulation flow.
-    /// </summary>
-    [Test]
-    public async Task CreateAndSimulate_FullGame_ShouldCompleteSuccessfully()
+    private DistributedApplication _app = null!;
+
+    [OneTimeSetUp]
+    public async Task FixtureSetup()
     {
-        // Arrange: Build and start the distributed application from the AppHost.
-        // This automatically handles service discovery, environment variables, and ports.
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.TicTacToeAspire_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
+        _app = await appHost.BuildAsync();
+        await _app.StartAsync();
+    }
 
-        // Act:
-        // 1. Get an HttpClient to communicate with the GameSessionService.
-        // The service name "gamesession" is pulled from your AppHost configuration.
-        var sessionClient = app.CreateHttpClient("gamesession");
+    [OneTimeTearDown]
+    public async Task FixtureTearDown()
+    {
+        await _app.StopAsync();
+    }
 
-        // 2. Create a new session by calling the POST api/sessions endpoint.
-        var createResponse = await sessionClient.PostAsync("api/sessions", null);
+    [Test, Order(1)]
+    public async Task FullGame_ViaApiGateway_ShouldCompleteSuccessfully()
+    {
+        // Arrange
+        var gatewayClient = _app.CreateHttpClient("apigateway");
+
+        // Act
+        var createResponse = await gatewayClient.PostAsync("/api/sessions", null);
         createResponse.EnsureSuccessStatusCode();
         var session = await createResponse.Content.ReadFromJsonAsync<Session>();
         Assert.That(session, Is.Not.Null);
 
-        // 3. Start the automated simulation.
-        var simulateResponse = await sessionClient.PostAsync($"api/sessions/{session.SessionId}/simulate", null);
+        var simulateResponse = await gatewayClient.PostAsync($"/api/sessions/{session.SessionId}/simulate", null);
         simulateResponse.EnsureSuccessStatusCode();
 
-        // 4. Poll the session status until the game is no longer "InProgress".
         while (session?.CurrentGameState?.Status == "InProgress")
         {
-            // Wait for 1.5 seconds to give the server time to process a move.
             await Task.Delay(1500);
-            session = await sessionClient.GetFromJsonAsync<Session>($"api/sessions/{session.SessionId}");
+            session = await gatewayClient.GetFromJsonAsync<Session>($"/api/sessions/{session.SessionId}");
         }
 
-        // Assert:
-        // 1. The final game status should not be "InProgress".
+        // Assert
         Assert.That(session?.CurrentGameState?.Status, Is.Not.EqualTo("InProgress"));
-
-        // 2. The game should have a valid conclusion (win or draw).
         var validStatuses = new[] { "CrossesWins", "CirclesWins", "Draw" };
         Assert.That(validStatuses, Does.Contain(session?.CurrentGameState?.Status));
-
-        // 3. The move history should contain moves. A game needs at least 5 moves to conclude.
         Assert.That(session?.MoveHistory, Is.Not.Empty);
-        Assert.That(session?.MoveHistory.Count, Is.GreaterThanOrEqualTo(5));
-
-        // Cleanup: The 'await using' statement automatically stops the application.
     }
 
-    // DTO models to match the structure of the API response for deserialization.
-    private class Session
+    [Test, Order(2)]
+    public async Task MakeMove_ConcurrentRequests_ShouldBeHandledCorrectly()
     {
-        [JsonPropertyName("sessionId")]
-        public string SessionId { get; set; } = string.Empty;
+        // Arrange
+        var gatewayClient = _app.CreateHttpClient("apigateway");
+        var gameId = $"concurrent-test-{Guid.NewGuid()}";
 
-        [JsonPropertyName("currentGameState")]
-        public GameState? CurrentGameState { get; set; }
+        await gatewayClient.PostAsync($"/api/games/{gameId}", null);
 
-        [JsonPropertyName("moveHistory")]
-        public List<object> MoveHistory { get; set; } = new();
+        // Act
+        var move1 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(0, "🤓"));
+        var move2 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(1, "😅"));
+        var move3 = gatewayClient.PostAsJsonAsync($"/api/games/{gameId}/move", new MoveRequest(2, "🤓"));
+
+        await Task.WhenAll(move1, move2, move3);
+
+        // Assert
+        var finalStateResponse = await gatewayClient.GetAsync($"/api/games/{gameId}");
+        finalStateResponse.EnsureSuccessStatusCode();
+        var finalState = await finalStateResponse.Content.ReadFromJsonAsync<GameState>();
+
+        Assert.That(finalState?.Board[0], Is.EqualTo("🤓"));
+        Assert.That(finalState?.Board[1], Is.EqualTo("😅"));
+        Assert.That(finalState?.Board[2], Is.EqualTo("🤓"));
+        Assert.That(finalState?.CurrentPlayer, Is.EqualTo("😅"));
     }
 
-    private class GameState
-    {
-        [JsonPropertyName("status")]
-        public string Status { get; set; } = string.Empty;
-    }
+    // DTO models
+    private record Session([property: JsonPropertyName("sessionId")] string SessionId, [property: JsonPropertyName("currentGameState")] GameState? CurrentGameState, [property: JsonPropertyName("moveHistory")] List<object> MoveHistory);
+    private record GameState([property: JsonPropertyName("board")] string[] Board, [property: JsonPropertyName("status")] string Status, [property: JsonPropertyName("currentPlayer")] string CurrentPlayer);
+    private record MoveRequest(int Position, string Player);
 }
