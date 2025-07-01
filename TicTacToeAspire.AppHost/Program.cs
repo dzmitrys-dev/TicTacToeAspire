@@ -3,7 +3,7 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Define the backend services
-var gameEngine = builder.AddProject<Projects.GameEngineService>("gameengine");
+var gameEngine = builder.AddProject<Projects.GameEngineService>("gameengine").WithReplicas(1);
 var gameSession = builder.AddProject<Projects.GameSessionService>("gamesession");
 
 // The GameSessionService now needs a direct reference to the GameEngineService
