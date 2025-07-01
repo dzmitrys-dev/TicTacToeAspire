@@ -15,8 +15,4 @@
     <ProjectReference Include="..\TicTacToeAspire.ServiceDefaults\TicTacToeAspire.ServiceDefaults.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Api\" />
-  </ItemGroup>
-
 </Project>

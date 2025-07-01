@@ -1,9 +1,12 @@
-﻿namespace GameEngineService.Domain;
+﻿using System.Text.Json.Serialization;
+
+namespace GameEngineService.Domain;
 
 public class Game
 {
     public string GameId { get; init; }
     public string[] Board { get; private set; } = new string[9];
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public GameStatus Status { get; private set; } = GameStatus.InProgress;
     public string CurrentPlayer { get; private set; } = Player.Crosses;
 
