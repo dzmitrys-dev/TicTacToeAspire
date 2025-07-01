@@ -1,0 +1,2 @@
+﻿namespace GameSessionService.Domain;
+public class GameState { public string GameId { get; set; } = ""; public string[] Board { get; set; } = new string[9]; public string Status { get; set; } = ""; public string CurrentPlayer { get; set; } = ""; }
